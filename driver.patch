@@ -1,5 +1,28 @@
+diff --git a/driver/hesai_lidar_sdk.hpp b/driver/hesai_lidar_sdk.hpp
+index a7e082c..aca2eea 100644
+--- a/driver/hesai_lidar_sdk.hpp
++++ b/driver/hesai_lidar_sdk.hpp
+@@ -373,7 +373,8 @@ public:
+           if (lidar_ptr_->frame_.fParam.use_cuda == false) {
+             lidar_ptr_->ComputeXYZI(packet_index);
+           }
+-          udp_packet_frame.emplace_back(packet);
++          // udp_packet_frame is only consumed by pkt_cb_; skip the 1.5 KB copy otherwise
++          if (pkt_cb_) udp_packet_frame.emplace_back(packet);
+           packet_index++;
+         }
+       }
+@@ -383,7 +384,7 @@ public:
+           if (lidar_ptr_->frame_.fParam.use_cuda == false) {
+             lidar_ptr_->ComputeXYZI(packet_index);
+           }
+-          udp_packet_frame.emplace_back(packet);
++          if (pkt_cb_) udp_packet_frame.emplace_back(packet);
+           packet_index++;
+         } 
+ 
 diff --git a/tool/CMakeLists.txt b/tool/CMakeLists.txt
-index 8f64c0e..84d14ea 100644
+index 8f64c0e..dfd70da 100644
 --- a/tool/CMakeLists.txt
 +++ b/tool/CMakeLists.txt
 @@ -41,7 +41,7 @@ if(FIND_CUDA)
@@ -7,7 +30,7 @@ index 8f64c0e..84d14ea 100644
          include_directories(${CUDA_INCLUDE_DIRS})
          set(CUDA_PROPAGATE_HOST_FLAGS OFF)
 -        set(CUDA_NVCC_FLAGS -arch=sm_61;-O3;-G;-g;-std=c++17)
-+        set(CUDA_NVCC_FLAGS -arch=sm_87;-O3;-G;-g;-std=c++17)
++        set(CUDA_NVCC_FLAGS -arch=sm_87;-O3;-std=c++17)
          link_directories($ENV{CUDA_PATH}/lib/x64)
          add_definitions(-DUSE_CUDA)
          message(STATUS "CUDA found, GPU support enabled")

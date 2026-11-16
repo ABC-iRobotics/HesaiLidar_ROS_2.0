@@ -20,12 +20,15 @@ if(FIND_CUDA)
     find_package(CUDA )
 endif()
 if(${CUDA_FOUND})
+	# Jetson Orin (Ampere) = sm_87. Must be set before CUDA is enabled; the SDK
+	# otherwise caches its default "61" and kernels are PTX-JIT-compiled at startup.
+	set(CMAKE_CUDA_ARCHITECTURES 87 CACHE STRING "CUDA architectures" FORCE)
   	project(CommonModules LANGUAGES CXX CUDA)
 	set(CUDA_SOURCE_PROPERTY_FORMAT OBJ)
 	set(CUDA_SEPARABLE_COMPILATION ON)
 	include_directories(${CUDA_INCLUDE_DIRS})
 	set(CUDA_PROPAGATE_HOST_FLAGS OFF)
-	set(CUDA_NVCC_FLAGS -arch=sm_87;-O3;-G;-g;)#根据具体GPU性能更改算力参数
+	set(CUDA_NVCC_FLAGS -arch=sm_87;-O3;)  # 根据具体GPU性能更改算力参数 (no -G/-g: device debug disables optimisation)
 	link_directories($ENV{CUDA_PATH}/lib/x64)
 
   add_definitions(-DUSE_CUDA)
@@ -42,9 +45,9 @@ set(POINT_TYPE XYZI)
 #=======================================
 # Compile setup (ORIGINAL, CATKIN, COLCON)
 #=======================================
-message(=============================================================)
-message("-- ROS_VERSION is $ENV{ROS_VERSION}")
-message(=============================================================)
+message(STATUS "=============================================================")
+message(STATUS "ROS_VERSION is $ENV{ROS_VERSION}")
+message(STATUS "=============================================================")
 
 
 #========================
@@ -124,9 +127,9 @@ if($ENV{ROS_VERSION} MATCHES "2")
   find_package(rclcpp QUIET)
   if(rclcpp_FOUND)
 
-    message(=============================================================)
-    message("-- ROS2 Found. ROS2 Support is turned On.")
-    message(=============================================================)
+    message(STATUS "=============================================================")
+    message(STATUS "ROS2 Found. ROS2 Support is turned On.")
+    message(STATUS "=============================================================")
 
     add_definitions(-DROS2_FOUND)
     include_directories(${rclcpp_INCLUDE_DIRS})
@@ -154,9 +157,9 @@ if($ENV{ROS_VERSION} MATCHES "2")
     
   else(rclcpp_FOUND)
 
-    message(=============================================================)
-    message("-- ROS2 Not Found. ROS2 Support is turned Off.")
-    message(=============================================================)
+    message(STATUS "=============================================================")
+    message(STATUS "ROS2 Not Found. ROS2 Support is turned Off.")
+    message(STATUS "=============================================================")
 
   endif(rclcpp_FOUND )
 endif($ENV{ROS_VERSION} MATCHES "2")

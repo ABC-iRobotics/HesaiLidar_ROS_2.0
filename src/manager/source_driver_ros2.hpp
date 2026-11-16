@@ -283,28 +283,27 @@ inline sensor_msgs::msg::PointCloud2 SourceDriver::ToRosMsg(const LidarDecodedFr
   ros_msg.is_dense = false;
   ros_msg.data.resize(points_number * ros_msg.point_step);
 
-  sensor_msgs::PointCloud2Iterator<float> iter_x_(ros_msg, "x");
-  sensor_msgs::PointCloud2Iterator<float> iter_y_(ros_msg, "y");
-  sensor_msgs::PointCloud2Iterator<float> iter_z_(ros_msg, "z");
-  sensor_msgs::PointCloud2Iterator<float> iter_intensity_(ros_msg, "intensity");
-  sensor_msgs::PointCloud2Iterator<uint16_t> iter_ring_(ros_msg, "ring");
-  sensor_msgs::PointCloud2Iterator<double> iter_timestamp_(ros_msg, "timestamp");
+  // Single raw-pointer pass at the fixed field offsets above (x0 y4 z8 i12 ring16 ts18,
+  // point_step 26). Points at exactly (0,0,0) are invalid returns (distance 0) and are dropped.
+  uint8_t *out = ros_msg.data.data();
+  uint32_t kept = 0;
   for (size_t i = 0; i < points_number; i++)
   {
-    LidarPointXYZIRT point = pPoints[i];
-    *iter_x_ = point.x;
-    *iter_y_ = point.y;
-    *iter_z_ = point.z;
-    *iter_intensity_ = point.intensity;
-    *iter_ring_ = point.ring;
-    *iter_timestamp_ = point.timestamp;
-    ++iter_x_;
-    ++iter_y_;
-    ++iter_z_;
-    ++iter_intensity_;
-    ++iter_ring_;
-    ++iter_timestamp_;   
+    const LidarPointXYZIRT &point = pPoints[i];
+    if (point.x == 0.0f && point.y == 0.0f && point.z == 0.0f) continue;
+    const float intensity = point.intensity;
+    memcpy(out + 0,  &point.x, sizeof(float));
+    memcpy(out + 4,  &point.y, sizeof(float));
+    memcpy(out + 8,  &point.z, sizeof(float));
+    memcpy(out + 12, &intensity, sizeof(float));
+    memcpy(out + 16, &point.ring, sizeof(uint16_t));
+    memcpy(out + 18, &point.timestamp, sizeof(double));
+    out += ros_msg.point_step;
+    kept++;
   }
+  ros_msg.width = kept;
+  ros_msg.row_step = ros_msg.width * ros_msg.point_step;
+  ros_msg.data.resize(static_cast<size_t>(kept) * ros_msg.point_step);
   // printf("HesaiLidar Runing Status [standby mode:%u]  |  [speed:%u]\n", frame.work_mode, frame.spin_speed);
   //printf("%s frame:%d points:%u packet:%d start time:%lf end time:%lf\n", prefix, frame_index, points_number, packet_number, frame_start_timestamp, frame_end_timestamp) ;
   std::cout.flush();

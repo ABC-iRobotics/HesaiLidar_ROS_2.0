@@ -30,6 +30,7 @@
 
 #include "manager/node_manager.h"
 #include <signal.h>
+#include <csignal>
 #include <iostream>
 #include "Version.h"
 #ifdef ROS_FOUND
@@ -44,10 +45,10 @@ std::mutex g_mtx;
 std::condition_variable g_cv;
 #endif
 
-bool sig_recv = false;
+volatile std::sig_atomic_t sig_recv = 0;
 static void sigHandler(int sig)
 {
-  sig_recv = true;
+  sig_recv = 1;
 #ifdef ROS_FOUND
   ros::shutdown();
 #elif ROS2_FOUND
@@ -107,9 +108,12 @@ int main(int argc, char** argv)
   // you can chose [!demo_ptr->IsPlayEnded()] or [1] 
   // If you chose !demo_ptr->IsPlayEnded(), ROS node will end with the end of the PCAP.
   // If you select 1, the ROS node does not end with the end of the PCAP.
-  while (!demo_ptr->IsPlayEnded() && sig_recv == false)
+  // Poll at 10 Hz: this loop only watches for PCAP end / SIGINT. The original
+  // 100 us sleep woke the main thread ~5500x/s (~4 % CPU) for nothing.
+  // (Not waiting on g_cv: notify from a signal handler is not async-signal-safe.)
+  while (!demo_ptr->IsPlayEnded() && !sig_recv)
   {
-    std::this_thread::sleep_for(std::chrono::microseconds(100));
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
   }
   demo_ptr->Stop();
   return 0;
